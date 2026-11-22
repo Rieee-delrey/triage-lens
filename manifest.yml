@@ -95,9 +95,7 @@ modules:
       description: >
         Get deterministic, rule-based triage suggestions for one Jira issue:
         assign an owner, chase a blocker, close as stale, or escalate by
-        priority. Suggestions are computed from the issue data only, no
-        language model is involved, so the same issue always gives the same
-        suggestions.
+        priority. Same issue, same suggestions, every time.
       inputs:
         issueKey:
           title: Issue key
@@ -147,4 +145,4 @@ app:
     name: nodejs24.x
     memoryMB: 256
     architecture: arm64
-  id: ari:cloud:ecosystem::app/0bf68c43-df22-4235-be5b-1712b9416a2e
+  id: ari:cloud:ecosystem::app/83544a1f-6abb-406c-ad3a-a2eca0fc4183
