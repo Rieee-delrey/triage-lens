@@ -1,0 +1,150 @@
+modules:
+  rovo:mcp:
+    - key: triage-lens-mcp
+      name: "Triage Lens MCP"
+      tools:
+        - find-stale-issues
+        - get-issue-context
+        - triage-suggest
+        - list-my-open-issues
+  rovo:agent:
+    - key: triage-lens-agent
+      name: "Triage Lens Agent"
+      description: >
+        A Rovo agent that triages stale Jira work. It finds issues that have
+        gone quiet, explains the context of any issue, and suggests the next
+        triage action using deterministic rules.
+      prompt: |
+        You are Triage Lens, a triage assistant for Jira teams. Your job is
+        to find work that has gone quiet and help the team decide what to do
+        with it. You are read-only: you never change, create or delete
+        anything, you only read and recommend.
+
+        You have four tools:
+        - find-stale-issues: list open issues not updated in the last N days,
+          stalest first. Ask for a project key and a day count when the user
+          does not give them; default to 14 days.
+        - get-issue-context: full context for one issue key.
+        - triage-suggest: rule-based triage suggestions for one issue key.
+        - list-my-open-issues: the open issues assigned to the user asking.
+
+        How to answer:
+        - Always call a tool before stating facts about issues. Never invent
+          issue keys, statuses, assignees or dates.
+        - When asked for stale work, call find-stale-issues, then present the
+          stalest issues first with key, summary, status, assignee and days
+          stale. Offer to triage the worst one.
+        - When asked about one issue, call get-issue-context and then
+          triage-suggest, and present the suggestions in order with their
+          reasons. Say plainly when an issue looks healthy and needs nothing.
+        - Keep answers short and concrete: keys, numbers, and one next action
+          per issue.
+      conversationStarters:
+        - What work has gone stale in my project?
+        - Triage this issue for me
+        - What are my open issues?
+      actions:
+        - find-stale-issues
+        - get-issue-context
+        - triage-suggest
+        - list-my-open-issues
+  action:
+    - key: find-stale-issues
+      name: Find stale issues
+      function: find-stale-issues-fn
+      actionVerb: GET
+      description: >
+        Find Jira issues that have not been updated for a given number of days.
+        Returns the stalest open issues first, with key, summary, status,
+        assignee, last-updated date and days stale. Use it to find work that
+        has gone quiet and needs triage.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: "Jira project key to search in, for example SCRUM. Leave empty to search all projects."
+        daysStale:
+          title: Days stale
+          type: number
+          required: false
+          description: "Only return issues not updated in the last N days. Defaults to 14."
+        maxResults:
+          title: Max results
+          type: number
+          required: false
+          description: "Maximum number of issues to return, between 1 and 50. Defaults to 10."
+    - key: get-issue-context
+      name: Get issue context
+      function: get-issue-context-fn
+      actionVerb: GET
+      description: >
+        Get the full context of one Jira issue: summary, status, type,
+        priority, assignee, reporter, dates, comment count and linked issues.
+        Use it before deciding what to do with an issue.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: "The Jira issue key, for example SCRUM-123."
+    - key: triage-suggest
+      name: Suggest triage actions
+      function: triage-suggest-fn
+      actionVerb: GET
+      description: >
+        Get deterministic, rule-based triage suggestions for one Jira issue:
+        assign an owner, chase a blocker, close as stale, or escalate by
+        priority. Suggestions are computed from the issue data only, no
+        language model is involved, so the same issue always gives the same
+        suggestions.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: "The Jira issue key, for example SCRUM-123."
+    - key: list-my-open-issues
+      name: List my open issues
+      function: list-my-open-issues-fn
+      actionVerb: GET
+      description: >
+        List the open Jira issues assigned to the user who is asking, stalest
+        first. Use it to answer what work the user currently has on their plate.
+      inputs:
+        maxResults:
+          title: Max results
+          type: number
+          required: false
+          description: "Maximum number of issues to return, between 1 and 50. Defaults to 10."
+  jira:issuePanel:
+    - key: triage-lens-panel
+      resource: main
+      resolver:
+        function: triage-resolver
+      render: native
+      title: Triage Lens
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  function:
+    - key: find-stale-issues-fn
+      handler: index.findStaleIssues
+    - key: get-issue-context-fn
+      handler: index.getIssueContext
+    - key: triage-suggest-fn
+      handler: index.triageSuggest
+    - key: list-my-open-issues-fn
+      handler: index.listMyOpenIssues
+    - key: triage-resolver
+      handler: index.handler
+resources:
+  - key: main
+    path: src/frontend/index.jsx
+permissions:
+  scopes:
+    - read:jira-work
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/0bf68c43-df22-4235-be5b-1712b9416a2e
